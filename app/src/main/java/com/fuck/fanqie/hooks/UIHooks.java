@@ -21,6 +21,7 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 public class UIHooks extends BaseHook {
+    private static final int MY_PAGE_DYNAMIC_SEARCH_VIEW_ID = 2131829453;
     private final CachedTargets cachedTargets;
 
     public UIHooks(CachedTargets cachedTargets, ClassLoader hostClassLoader) {
@@ -30,26 +31,38 @@ public class UIHooks extends BaseHook {
 
     @Override
     public void apply() {
+        applyDisableMyPageSidebarHooks();
         applySlidingTabHooks();
         applyRedDotHooks();
         applyRemoveMyPageExtraCardHooks();
         applyMyPageVipEntranceHooks();
+        applyMyPageSearchHooks();
         applyCustomVipHooks();
         applySearchWordHooks();
         applySearchBarHooks();
         applyTabHooks();
         applyRemoveRankHooks();
-        applyRemoveSideBarHooks();
     }
 
-    private void applyRemoveSideBarHooks() {
-        for (String key : new String[]{HookTargets.KEY_GAME_AREA_METHOD, HookTargets.KEY_MSG_AREA_METHOD}) {
-            Method method = cachedTargets.method(key);
-            if (method != null) {
-                XposedBridge.hookMethod(method, XC_MethodReplacement.returnConstant(null));
-            }
+    private void applyDisableMyPageSidebarHooks() {
+        try {
+            Class<?> configClass = XposedHelpers.findClass(
+                    "com.dragon.read.base.ssconfig.template.GameRevisitPathV693Model",
+                    hostClassLoader
+            );
+            XposedBridge.hookAllMethods(configClass, "b", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    Object config = param.getResult();
+                    if (config != null) {
+                        XposedHelpers.setBooleanField(config, "sideBarEnable", false);
+                    }
+                }
+            });
+            XposedBridge.log("FQHook+MyPageSidebar: 已禁用侧边栏配置");
+        } catch (Throwable throwable) {
+            HookUtils.logError("FQHook+MyPageSidebar: Hook侧边栏配置失败: ", throwable);
         }
-        XposedBridge.log("FQHook+applyHooks: 已移除侧边栏相关区域");
     }
 
     private boolean isWantedFeature(Object featureId) {
@@ -129,6 +142,57 @@ public class UIHooks extends BaseHook {
             XposedBridge.hookMethod(method, XC_MethodReplacement.returnConstant(null));
             XposedBridge.log("FQHook+applyHooks: 已禁用我的页面VIP入口");
         }
+    }
+
+    public void applyMyPageSearchHooks() {
+        Method dynamicSearchMethod = cachedTargets.method(HookTargets.KEY_MY_PAGE_SEARCH_BAR_METHOD);
+        if (dynamicSearchMethod != null) {
+            XposedBridge.hookMethod(dynamicSearchMethod, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        hideMyPageDynamicSearch(param.thisObject);
+                    } catch (Throwable throwable) {
+                        HookUtils.logError("FQHook+MyPageSearch: 隐藏动态搜索入口失败: ", throwable);
+                    }
+                }
+            });
+            XposedBridge.log("FQHook+MyPageSearch: 已隐藏我的页面搜索入口");
+        }
+    }
+
+    private void hideMyPageDynamicSearch(Object target) throws IllegalAccessException {
+        View searchView = findViewById(target, MY_PAGE_DYNAMIC_SEARCH_VIEW_ID);
+        if (searchView == null) {
+            return;
+        }
+        searchView.setVisibility(View.INVISIBLE);
+        searchView.setEnabled(false);
+        searchView.setClickable(false);
+    }
+
+    private View findViewById(Object target, int viewId) throws IllegalAccessException {
+        for (Class<?> clazz = target.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
+            for (Field field : clazz.getDeclaredFields()) {
+                if (!View.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                Object value = field.get(target);
+                if (!(value instanceof View)) {
+                    continue;
+                }
+                View rootView = (View) value;
+                if (rootView.getId() == viewId) {
+                    return rootView;
+                }
+                View childView = rootView.findViewById(viewId);
+                if (childView != null) {
+                    return childView;
+                }
+            }
+        }
+        return null;
     }
 
     public void applyRedDotHooks() {

@@ -27,8 +27,6 @@ public class UIFinder extends BaseFinder {
         findDynamicMethod(bridge);
         findBookNameClickMethod(bridge);
         findMyPageSearchBarMethod(bridge);
-        findGameAreaMethod(bridge);
-        findMsgAreaMethod(bridge);
     }
 
     private void findBookNameClickMethod(DexKitBridge bridge) {
@@ -119,40 +117,6 @@ public class UIFinder extends BaseFinder {
             }
         } catch (Throwable throwable) {
             log("查找首页过滤相关方法失败", throwable);
-        }
-    }
-
-    private void findGameAreaMethod(DexKitBridge bridge) {
-        try {
-            MethodData methodData = first(bridge.findMethod(
-                    FindMethod.create()
-                            .searchPackages(new String[]{"com.dragon.read.kmp.mine.sidebar"})
-                            .matcher(
-                                    MethodMatcher.create()
-                                            .usingStrings(new String[]{"com.dragon.read.kmp.mine.sidebar.GameArea"})
-                                            .paramCount(3)
-                            )
-            ));
-            cacheMethod(HookTargets.KEY_GAME_AREA_METHOD, methodData);
-        } catch (Throwable throwable) {
-            log("查找游戏区域方法失败", throwable);
-        }
-    }
-
-    private void findMsgAreaMethod(DexKitBridge bridge) {
-        try {
-            MethodData methodData = first(bridge.findMethod(
-                    FindMethod.create()
-                            .searchPackages(new String[]{"com.dragon.read.kmp.mine.sidebar"})
-                            .matcher(
-                                    MethodMatcher.create()
-                                            .usingStrings(new String[]{"com.dragon.read.kmp.mine.sidebar.MsgArea"})
-                                            .paramCount(3)
-                            )
-            ));
-            cacheMethod(HookTargets.KEY_MSG_AREA_METHOD, methodData);
-        } catch (Throwable throwable) {
-            log("查找消息区域方法失败", throwable);
         }
     }
 
